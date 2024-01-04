@@ -594,6 +594,10 @@ defmodule EthereumJSONRPC.Block do
     |> Enum.map(fn {uncle_hash, index} -> %{"hash" => uncle_hash, "nephewHash" => nephew_hash, "index" => index} end)
   end
 
+  def elixir_to_uncles(%{"hash" => _nephew_hash}) do
+    []
+  end
+
   @doc """
   Get `t:EthereumJSONRPC.Withdrawals.elixir/0` from `t:elixir/0`.
 

@@ -250,46 +250,10 @@ defmodule EthereumJSONRPC.Block do
       }
   """
   @spec elixir_to_params(elixir) :: params
-  def elixir_to_params(
-        %{
-          "extraData" => extra_data,
-          "gasUsed" => gas_used,
-          "hash" => hash,
-          "logsBloom" => logs_bloom,
-          "miner" => miner_hash,
-          "number" => number,
-          "parentHash" => parent_hash,
-          "receiptsRoot" => receipts_root,
-          "size" => size,
-          "stateRoot" => state_root,
-          "timestamp" => timestamp,
-          "totalDifficulty" => total_difficulty,
-          "transactionsRoot" => transactions_root,
-          "baseFeePerGas" => base_fee_per_gas
-        } = elixir
-      ) do
-    %{
-      difficulty: Map.get(elixir, "difficulty", 0),
-      extra_data: extra_data,
-      gas_limit: Map.get(elixir, "gasLimit", 20_000_000),
-      gas_used: gas_used,
-      hash: hash,
-      logs_bloom: logs_bloom,
-      miner_hash: miner_hash,
-      mix_hash: Map.get(elixir, "mixHash", "0x0"),
-      nonce: Map.get(elixir, "nonce", 0),
-      number: number,
-      parent_hash: parent_hash,
-      receipts_root: receipts_root,
-      sha3_uncles: Map.get(elixir, "sha3Uncles", "0x0"),
-      size: size,
-      state_root: state_root,
-      timestamp: timestamp,
-      total_difficulty: total_difficulty,
-      transactions_root: transactions_root,
-      uncles: Map.get(elixir, "uncles", []),
-      base_fee_per_gas: base_fee_per_gas
-    }
+  def elixir_to_params(elixir) do
+    elixir
+    |> do_elixir_to_params()
+    |> chain_type_fields(elixir)
   end
 
   defp do_elixir_to_params(
@@ -628,10 +592,6 @@ defmodule EthereumJSONRPC.Block do
     uncles
     |> Enum.with_index()
     |> Enum.map(fn {uncle_hash, index} -> %{"hash" => uncle_hash, "nephewHash" => nephew_hash, "index" => index} end)
-  end
-
-  def elixir_to_uncles(%{"hash" => _nephew_hash}) do
-    []
   end
 
   @doc """

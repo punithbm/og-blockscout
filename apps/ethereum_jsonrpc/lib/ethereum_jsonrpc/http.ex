@@ -94,7 +94,21 @@ defmodule EthereumJSONRPC.HTTP do
     case length(batch) do
       # it can't be made any smaller
       1 ->
-        log_rechunk_failure(batch, response)
+        old_truncate = Application.get_env(:logger, :truncate)
+        Logger.configure(truncate: :infinity)
+
+        Logger.error(fn ->
+          [
+            "413 Request Entity Too Large returned from single request batch. Cannot shrink batch further. ",
+            "The actual batched request was ",
+            "#{inspect(batch)}. ",
+            "The actual response of the method was ",
+            "#{inspect(response)}."
+          ]
+        end)
+
+        Logger.configure(truncate: old_truncate)
+
         {:error, response}
 
       batch_size ->
@@ -103,16 +117,6 @@ defmodule EthereumJSONRPC.HTTP do
         new_chunks = [first_chunk, second_chunk | tail]
         chunked_json_rpc(new_chunks, options, decoded_response_bodies)
     end
-  end
-
-  defp log_rechunk_failure([%{method: "debug_traceTransaction", params: [tx_hash, _]}], :closed) do
-    Logger.error("debug_traceTransaction failed for single batch with transaction=#{tx_hash}")
-  end
-
-  defp log_rechunk_failure(_, _) do
-    Logger.error(fn ->
-      "413 Request Entity Too Large returned from single request batch.  Cannot shrink batch further."
-    end)
   end
 
   defp encode_json(data), do: Jason.encode_to_iodata!(data)

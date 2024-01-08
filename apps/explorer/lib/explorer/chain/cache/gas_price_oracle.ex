@@ -209,24 +209,45 @@ defmodule Explorer.Chain.Cache.GasPriceOracle do
   defp merge_fees(fees_from_db) do
     fees_from_db
     |> Stream.map(&Map.delete(&1, :block_number))
-    |> Enum.reduce(
-      &Map.merge(&1, &2, fn
-        _, nil, nil -> nil
-        _, val, acc when nil not in [val, acc] and is_list(acc) -> [val | acc]
-        _, val, acc when nil not in [val, acc] -> [val, acc]
-        _, val, acc -> [val || acc]
-      end)
-    )
+    |> Enum.reduce(%{}, fn fee, acc ->
+       Map.merge(fee, acc, fn
+         _, nil, nil -> nil
+         _, val, acc when nil not in [val, acc] and is_list(acc) -> [val | acc]
+         _, val, acc when nil not in [val, acc] -> [val | [acc]]
+         _, val, acc -> [val] ++ List.wrap(acc)  # Ensure acc is a list before concatenation
+       end)
+     end)
     |> Map.new(fn
-      {key, nil} ->
-        {key, nil}
+       {key, nil} -> 
+         if is_nil(key), do: nil, else: {key, nil}
 
-      {key, value} ->
-        value = if is_list(value), do: value, else: [value]
-        count = Enum.count(value)
-        {key, value |> Enum.reduce(Decimal.new(0), &Decimal.add/2) |> Decimal.div(count)}
-    end)
+       {key, value} when is_list(value) ->
+         {key, calculate_average(List.flatten(value))}  # Flatten the list before calculating average
+
+       {key, value} ->
+         {key, value}
+     end)
   end
+
+  defp calculate_average(values) do
+    # Filter out nil values and flatten the list
+    flattened_values = values |> List.flatten() |> Enum.filter(& !is_nil(&1))
+
+    count = Enum.count(flattened_values)
+
+    if count > 0 do
+      total = Enum.reduce(flattened_values, Decimal.new(0), fn value, acc ->
+        Decimal.add(acc, ensure_decimal(value))
+      end)
+      Decimal.div(total, Decimal.new(count))
+    else
+      nil
+    end
+  end
+
+  defp ensure_decimal(value) when is_binary(value), do: Decimal.new(value)
+  defp ensure_decimal(value) when is_number(value), do: Decimal.new(value)
+  defp ensure_decimal(value), do: value
 
   defp compose_gas_price(fee, time, exchange_rate_from_db) do
     %{
